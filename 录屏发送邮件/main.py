@@ -19,7 +19,7 @@ class SendEmail:
         # 登录名
         self.login_user = '1364826576@qq.com'
         # 这里要注意 不是qq密码 而是在邮箱里设置的发送邮箱的授权码
-        self.password = 'btfixrcdeguejfja'
+        self.password = 'x'
         # 发送邮件的服务器地址 qq为smtp.qq.com  163邮箱为smtp.163.com
         self.email_host = 'smtp.qq.com'
 
