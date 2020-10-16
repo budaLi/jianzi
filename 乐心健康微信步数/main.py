@@ -109,27 +109,26 @@ def execute_walk(phone, password, step):
         kt_send(msg)
 
 
-def main():
-    if phone and password and step != '':
-        execute_walk(phone, password, step)
-    else:
-        print("参数不全,请指定参数。或者在调用中直接指定参数")
+def main(phone,password,step):
+    execute_walk(phone, password, step)
 
 
-# -- 配置 --
-# ------------------------------
-phone = ''  # 登陆账号
-password = ''  # 密码
-step = random.randint(30000, 40000)  # 随机30000-40000步数
-sckey = ''  # server酱key(可空)
-ktkey = ''  # 酷推key(可空)
+
+# 江西
+# phone = '18779089018'  # 登陆账号
+# password = 'z19970927'  # 密码
 
 
-# ------------------------------
-
-def main_handler(event, context):
-    return main()
 
 
 if __name__ == '__main__':
-    main()
+    info = [
+        ['15735656005','123456',69999],  # 李不搭
+        ['17600180818','123456',69999],  # 张航
+        ['18832676386','123456',16888],  # 张老师
+    ]
+    for one in info:
+        phone = one[0]
+        password = one[1]
+        step = one[2]
+        main(phone, password, step)
