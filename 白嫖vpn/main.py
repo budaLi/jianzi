@@ -8,48 +8,37 @@ from itertools import chain
 import requests
 from queue import Queue
 from tqdm import tqdm
+import string
+import hashlib
+import random
+import threading
 
 # urls= "https://sub.52dog.cloud/link/YiotLqs9YjEk5aCz?sub=3"
 # url = "https://sub.52dog.cloud/link/47o6gGe3scYEGIFz?sub=3"
+# 可用的两个订阅  16位随机字母加数字构成
+# 原理：可用订阅正常访问时会下载文件  不可用订阅无内容
+
+
+
+
 base_url = "https://sub.52dog.cloud/link/{}?sub=3"
 res_file  = "res.txt"
-
-
-# chr(97) -> 'a' 这个变量保存了密码包含的字符集
-dictionaries = [chr(i) for i in
-                chain(
-                    range(48, 58), # 0 - 9
-                    range(97, 123),  # a - z
-                      range(65, 91))  ] # A - Z
-
-
-def all_passwd(dictionaries, maxlen: int):
-    # 返回由 dictionaries 中字符组成的所有长度为 maxlen 的字符串
-    def helper(temp: list, start: int, n: int):
-        # 辅助函数，是个生成器
-        if start == n:  # 达到递归出口
-            yield ''.join(temp)
-            return
-        for t in dictionaries:
-            temp[start] = t  # 在每个位置
-            yield from helper(temp, start + 1, n)
-
-    yield from helper([0] * maxlen, 0, maxlen)
-
+count =0
+total_dic= {}
 
 
 def generute_url():
-    lengths = [16]  # 密码长度
-    total = sum(len(dictionaries) ** k for k in lengths)  # 密码总数
+
     url_quque = Queue()
+    total_count = 10000
+    for i in range(total_count):
 
-    total_count = 10
+        # 选取16个随机字符串加密
+        pwd = "".join(random.sample('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890', 16))
+        if pwd not in total_dic:
+            url_quque.put(base_url.format(pwd))
+            total_dic[pwd]=1
 
-    for pwd in tqdm(chain.from_iterable(all_passwd(dictionaries, maxlen) for maxlen in lengths), total=total):
-        if total_count<=0:
-            break
-        url_quque.put(base_url.format(pwd))
-        total_count -= 1
     return url_quque
 
 
@@ -62,9 +51,9 @@ def get(url):
         return 1
     return None
 
-def main():
-    count =0
-    url_quque = generute_url()
+def main(url_quque):
+    global count
+
     while not url_quque.empty():
         url = url_quque.get()
         res = get(url)
@@ -72,4 +61,14 @@ def main():
             print("订阅成功获取个数为：{}".format(count))
             count+=1
 
-main()
+if __name__ == '__main__':
+    thread_num = 5
+    url_quque = generute_url()
+    thread_lis = []
+    for i in range(thread_num):
+        th = threading.Thread(target=main,args=(url_quque,))
+        thread_lis.append(th)
+    for one in thread_lis:
+        one.start()
+    for one in thread_lis:
+        one.join()
