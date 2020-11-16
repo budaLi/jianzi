@@ -2,3 +2,7 @@
 # @Author  : Libuda
 # @FileName: demo_old.py
 # @Software: PyCharm
+try:
+    print(1)
+except:
+    print(2)

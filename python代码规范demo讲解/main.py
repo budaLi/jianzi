@@ -8,6 +8,7 @@
 
 import json
 import flask
+
 FLASK_SERVER = flask.Flask(__name__)
 FLASK_SERVER.route("/")
 
@@ -23,4 +24,3 @@ def index():
 
 if __name__ == "__main__":
     FLASK_SERVER.run(debug=False)
-
