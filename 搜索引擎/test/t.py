@@ -46,7 +46,8 @@ def logger(msg, color=""):
     日志信息
     """
     timeArray = time.localtime(time.time())
-    now = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
+    # now = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
+    now = time.strftime("%m-%d %H:%M:%S", timeArray)
     # now = time.strftime("",time.time())
     txt = "{}:{}".format(now, msg)
     if color == "red":
@@ -148,6 +149,7 @@ class Spider:
     def __init__(self):
         global url_count
         global email_count
+        global key_index
 
         # 关键词excel
         self.opExcel = OperationExcel(config['keywords_excel_path'], 0)
@@ -165,10 +167,20 @@ class Spider:
         email_count = self.email_count
 
         self.keyword_index = 1
+        key_index = self.keyword_index
 
         # 去重url和email
         self.totlc_url_res = set()
         self.totlc_email_res = set()
+
+        # 过滤规则
+        self.fillter = config['fillter'].split(",")
+
+    def filter_email(self,data):
+        for one in self.fillter:
+            if one in data:
+                return None
+        return data
 
     def get_keywords_data(self, row):
         """
@@ -189,7 +201,7 @@ class Spider:
         logger("生成关键点队列中......请稍候")
         for index in range(xx):
             key = self.get_keywords_data(index)
-            key += " email"
+            key += " "+default_add_keyword
             self.keyword_queue.put(key)
 
     def write_to_excel(self, file_path, sheet_id, row, col, value):
@@ -214,7 +226,7 @@ class Spider:
         except:
             pass
 
-    def extractOnlyUrl(self, url,key):
+    def extractOnlyUrl(self, url,key_index,key):
         global email_count
         try:
             listUrl = []
@@ -240,14 +252,16 @@ class Spider:
 
             for email in emails:
                 if (email not in self.totlc_email_res and email[-3:] not in imageExt):
-                    self.totlc_email_res.add(email)
-                    listUrl.append(email)
+                    email = self.filter_email(email)
+                    if email:
+                        self.totlc_email_res.add(email)
+                        listUrl.append(email)
             if len(listUrl) > 0:
                 for email in listUrl:
                     try:
                         self.write_to_excel(email_path, 0, email_count, 0, email)
                         email_count += 1
-                        logger("当前爬取第{}个关键词：{},采集Email为:【{}】:{}".format(self.keyword_index, key,email_count, email), color="")
+                        logger("正采集第{}词：{},Email为:【{}】:{}".format(key_index, key,email_count, email), color="")
                     except Exception as e:
                         logger("异常信息：{}".format(e))
 
@@ -258,12 +272,13 @@ class Spider:
 
     def spider(self, key_queue):
         global url_count
+        global key_index
         try:
             while not key_queue.empty():
                 key = key_queue.get()
 
-                logger("当前爬取第{}个关键词：{}".format(self.keyword_index, key))
-                self.keyword_index += 1
+                logger("当前爬取第{}个关键词：{}".format(key_index, key))
+
                 response = search(key, user_agent=ua.random)
 
                 for index, result in enumerate(response):
@@ -271,7 +286,7 @@ class Spider:
                     #  休眠1s目前  暂时稳定
                     time.sleep(3)
                     # 每个url解析email
-                    self.extractOnlyUrl(result,key)
+                    self.extractOnlyUrl(result,key_index,key)
 
                     url = result.split("/")
                     try:
@@ -279,18 +294,22 @@ class Spider:
                     except Exception as e:
                         tmp = url[0] + "//" + url[2]
                     if tmp not in self.totlc_url_res:
-                        try:
-                            logger("当前爬取第{}个关键词：{},采集Url为:【{}】:{}".format(self.keyword_index, key,url_count, tmp), color="")
-                            self.totlc_url_res.add(tmp)
-                            self.write_to_excel(file_path, 0, url_count, 0, tmp)
-                            url_count += 1
-                            if url_count != 0 and url_count % number_of_url_will_sleep == 0:
-                                # logger("休眠60s中")
-                                time.sleep(10)
-                        except Exception as e:
-                            logger("异常信息：{}".format(e))
+                        tmp = self.filter_email(tmp)
+                        if tmp:
+                            try:
+                                logger("正采集第{}词：{},Url为:【{}】:{}".format(key_index, key,url_count, tmp), color="")
+                                self.totlc_url_res.add(tmp)
+                                self.write_to_excel(file_path, 0, url_count, 0, tmp)
+                                url_count += 1
+                                if url_count != 0 and url_count % number_of_url_will_sleep == 0:
+                                    # logger("休眠60s中")
+                                    time.sleep(10)
+                            except Exception as e:
+                                logger("异常信息：{}".format(e))
+                logger("当前爬取第{}个关键词：{},爬取完毕！！".format(key_index, key))
                 logger("sleep:{}".format(time_wait))
                 time.sleep(time_wait)
+                key_index+=1
 
 
         except Exception as e:
@@ -332,6 +351,8 @@ if __name__ == '__main__':
     email_path = config['google_email']
     time_wait = int(config['time_wait'])
     thread_num = int(config["thread_num"])
+    default_add_keyword = config["default_add_keyword"]
+
     number_of_url_will_sleep = 50
     logger(time.ctime())
     main()
