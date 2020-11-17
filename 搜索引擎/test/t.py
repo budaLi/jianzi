@@ -40,6 +40,42 @@ def green(text):
 def red(text):
     return colored(text, 'red', attrs=['bold'])
 
+class SendEmail:
+    def __init__(self):
+        # 发件人
+        self.send_user = "李晋军" + "<1364826576@qq.com>"
+        # 登录名
+        self.login_user = '1364826576@qq.com'
+        # 这里要注意 不是qq密码 而是在邮箱里设置的发送邮箱的授权码
+        self.password = 'btfixrcdeguejfja'
+        # 发送邮件的服务器地址 qq为smtp.qq.com  163邮箱为smtp.163.com
+        self.email_host = 'smtp.qq.com'
+
+    def _send(self, userlist, message):
+        # 实例化邮件发送服务器
+        server = smtplib.SMTP()
+        # 连接qq邮箱服务器
+        server.connect(self.email_host)
+        # 登录服务器
+        server.login(self.login_user, self.password)
+        # 发送邮件  注意此处消息的格式应该用as_string()函数
+        server.sendmail(self.send_user, userlist, message.as_string())
+        # 关闭邮箱
+        server.close()
+
+    def send_text(self, userlist, subject, content):
+        """
+        发送文本邮件
+        :param userlist: 接收人  列表形式
+        :param subject: 主题
+        :param content:  内容
+        :return:
+        """
+        message = MIMEText(content, _subtype='plain', _charset='utf-8')
+        message['Subject'] = subject
+        message['From'] = self.send_user
+        message['To'] = userlist
+        self._send(userlist, message)
 
 def logger(msg, color=""):
     """
@@ -229,6 +265,7 @@ class Spider:
     def extractOnlyUrl(self, url,key_index,key):
         global email_count
         try:
+            time.sleep(pre_url_or_email_sleep)
             listUrl = []
             req = urllib.request.Request(url, data=None, headers={'User-Agent': ua.random})
             try:
@@ -284,7 +321,7 @@ class Spider:
                 for index, result in enumerate(response):
 
                     #  休眠1s目前  暂时稳定
-                    time.sleep(3)
+                    time.sleep(pre_url_or_email_sleep)
                     # 每个url解析email
                     self.extractOnlyUrl(result,key_index,key)
 
@@ -311,9 +348,15 @@ class Spider:
                 time.sleep(time_wait)
                 key_index+=1
 
-
         except Exception as e:
             logger("异常信息：{}".format(e))
+            logger("爬取速度过快，休眠中.....休眠时间为:{}".format(time_sleep_on_sealing_ip))
+            send = SendEmail()
+            content = "当前爬取第{}个关键词遇到封ip，正在休眠等待重启".format(key_index)
+            user_list = ["1364826576@qq.com"]
+            send.send_text(user_list,"爬虫封ip警告",content)
+            time.sleep(time_sleep_on_sealing_ip)
+            self.spider(key_queue)
 
     def main(self):
         global start_index, res_set
@@ -352,6 +395,8 @@ if __name__ == '__main__':
     time_wait = int(config['time_wait'])
     thread_num = int(config["thread_num"])
     default_add_keyword = config["default_add_keyword"]
+    pre_url_or_email_sleep = int(config["pre_url_or_email_sleep"])
+    time_sleep_on_sealing_ip = int(config["time_sleep_on_sealing_ip"])
 
     number_of_url_will_sleep = 50
     logger(time.ctime())
