@@ -5,37 +5,43 @@ Module Summary Here.
 Authors: lijinjun1351@ichinae.com
 """
 import re
+import subprocess
 import urllib.request
 import urllib.request
 from configparser import ConfigParser
+from os import devnull
 from queue import Queue
 from urllib.error import HTTPError, URLError
+
 import threading
 import time
-from termcolor import colored
 import xlrd
 from fake_useragent import UserAgent
 from googlesearch import search
 from socket import timeout
+from termcolor import colored
 from xlutils.copy import copy as xl_copy
 
-import subprocess
 
-def toUTF8():
-    process = subprocess.Popen(['chcp', '65001'], shell=True)
-    process.communicate()
-toUTF8()
+# def to_utf8():
+#     process = subprocess.Popen(['chcp', '65001'], shell=True)
+#     process.communicate()
+# to_utf8()
+
 imageExt = ["jpeg", "exif", "tiff", "gif", "bmp", "png", "ppm", "pgm", "pbm", "pnm", "webp", "hdr", "heif", "bat",
-            "bpg", "cgm", "svg", "jpg","css",".js",".io"]
+            "bpg", "cgm", "svg", "jpg", "css", ".js", ".io", "ebp"]
 ua = UserAgent()
+
 
 def green(text):
     return colored(text, 'green', attrs=['bold'])
 
+
 def red(text):
     return colored(text, 'red', attrs=['bold'])
 
-def logger(msg,color=""):
+
+def logger(msg, color=""):
     """
     日志信息
     """
@@ -43,9 +49,9 @@ def logger(msg,color=""):
     now = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
     # now = time.strftime("",time.time())
     txt = "{}:{}".format(now, msg)
-    if color=="red":
+    if color == "red":
         txt = red(txt)
-    elif color=="green":
+    elif color == "green":
         txt = green(txt)
     print(txt)
 
@@ -65,8 +71,7 @@ class OperationExcel():
             self.file_name = file_name
             self.sheet_id = sheet_id
         else:
-            self.file_name = r"C:\Users\lenovo\PycharmProjects\Spider\biying_data.xls"
-            self.sheet_id = 0
+            raise Exception("请指定filename")
         self.tables = self.get_tables()
 
     def create_sheet(self, sheet_name):
@@ -159,7 +164,7 @@ class Spider:
         url_count = self.url_count
         email_count = self.email_count
 
-        self.keyword_index = 0
+        self.keyword_index = 1
 
         # 去重url和email
         self.totlc_url_res = set()
@@ -188,20 +193,32 @@ class Spider:
             self.keyword_queue.put(key)
 
     def write_to_excel(self, file_path, sheet_id, row, col, value):
-        work_book = xlrd.open_workbook(file_path, formatting_info=False)
-        # 先通过xlutils.copy下copy复制Excel
-        write_to_work = xl_copy(work_book)
-        # 通过sheet_by_index没有write方法 而get_sheet有write方法
-        sheet_data = write_to_work.get_sheet(sheet_id)
-        sheet_data.write(row, col, str(value))
-        # 这里要注意保存 可是会将原来的Excel覆盖 样式消失
-        write_to_work.save(file_path)
+        """
+        写入excel  #TODO 异常处理
+        :param file_path:
+        :param sheet_id:
+        :param row:
+        :param col:
+        :param value:
+        :return:
+        """
+        try:
+            work_book = xlrd.open_workbook(file_path, formatting_info=False, logfile=open(devnull, 'w'))
+            # 先通过xlutils.copy下copy复制Excel
+            write_to_work = xl_copy(work_book)
+            # 通过sheet_by_index没有write方法 而get_sheet有write方法
+            sheet_data = write_to_work.get_sheet(sheet_id)
+            sheet_data.write(row, col, str(value))
+            # 这里要注意保存 可是会将原来的Excel覆盖 样式消失
+            write_to_work.save(file_path)
+        except:
+            pass
 
-    def extractOnlyUrl(self, url):
+    def extractOnlyUrl(self, url,key):
         global email_count
         try:
             listUrl = []
-            req = urllib.request.Request(url,data=None,headers={ 'User-Agent': ua.random })
+            req = urllib.request.Request(url, data=None, headers={'User-Agent': ua.random})
             try:
                 conn = urllib.request.urlopen(req, timeout=10)
             except timeout:
@@ -230,7 +247,7 @@ class Spider:
                     try:
                         self.write_to_excel(email_path, 0, email_count, 0, email)
                         email_count += 1
-                        logger("Email:【{}】-{}".format(email_count, email),color="red")
+                        logger("当前爬取第{}个关键词：{},采集Email为:【{}】:{}".format(self.keyword_index, key,email_count, email), color="")
                     except Exception as e:
                         logger("异常信息：{}".format(e))
 
@@ -247,14 +264,14 @@ class Spider:
 
                 logger("当前爬取第{}个关键词：{}".format(self.keyword_index, key))
                 self.keyword_index += 1
-                response = search(key,user_agent= ua.random)
+                response = search(key, user_agent=ua.random)
 
                 for index, result in enumerate(response):
 
                     #  休眠1s目前  暂时稳定
-                    time.sleep(1)
+                    time.sleep(3)
                     # 每个url解析email
-                    self.extractOnlyUrl(result)
+                    self.extractOnlyUrl(result,key)
 
                     url = result.split("/")
                     try:
@@ -263,16 +280,19 @@ class Spider:
                         tmp = url[0] + "//" + url[2]
                     if tmp not in self.totlc_url_res:
                         try:
-                            logger("Url:【{}】:{}".format(url_count, tmp),color="green")
+                            logger("当前爬取第{}个关键词：{},采集Url为:【{}】:{}".format(self.keyword_index, key,url_count, tmp), color="")
                             self.totlc_url_res.add(tmp)
                             self.write_to_excel(file_path, 0, url_count, 0, tmp)
                             url_count += 1
-                            if url_count != 0 and url_count % 50 == 0:
-                                pass
+                            if url_count != 0 and url_count % number_of_url_will_sleep == 0:
                                 # logger("休眠60s中")
-                                # time.sleep(60)
+                                time.sleep(10)
                         except Exception as e:
                             logger("异常信息：{}".format(e))
+                logger("sleep:{}".format(time_wait))
+                time.sleep(time_wait)
+
+
         except Exception as e:
             logger("异常信息：{}".format(e))
 
@@ -286,9 +306,7 @@ class Spider:
         logger("关键词总数：{}".format(key_len))
         self.generate_keywords_queue()
 
-
         threads = []
-        thread_num = 5
         for i in range(thread_num):
             thread = threading.Thread(target=self.spider, args=(self.keyword_queue,))
             threads.append(thread)
@@ -297,9 +315,6 @@ class Spider:
             one.start()
         for one in threads:
             one.join()
-
-
-
 
 
 def main():
@@ -315,5 +330,13 @@ if __name__ == '__main__':
     config = config_parser['default']
     file_path = config['google_datas']
     email_path = config['google_email']
+    time_wait = int(config['time_wait'])
+    thread_num = int(config["thread_num"])
+    number_of_url_will_sleep = 50
     logger(time.ctime())
     main()
+
+    # 避免窗口退出
+    logger("采集完毕")
+    while 1:
+        pass
