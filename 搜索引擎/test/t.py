@@ -4,8 +4,9 @@
 Module Summary Here.
 Authors: lijinjun1351@ichinae.com
 """
+import smtplib  # 发送邮件 连接邮件服务器
+from email.mime.text import MIMEText  # 构建邮件格式
 import re
-import subprocess
 import urllib.request
 import urllib.request
 from configparser import ConfigParser
@@ -74,7 +75,7 @@ class SendEmail:
         message = MIMEText(content, _subtype='plain', _charset='utf-8')
         message['Subject'] = subject
         message['From'] = self.send_user
-        message['To'] = userlist
+        message['To'] = ';'.join(userlist)  # 收件人列表以分号隔开
         self._send(userlist, message)
 
 def logger(msg, color=""):
@@ -185,8 +186,9 @@ class Spider:
     def __init__(self):
         global url_count
         global email_count
-        global key_index
+        global key_count
 
+        key_count = 0
         # 关键词excel
         self.opExcel = OperationExcel(config['keywords_excel_path'], 0)
         # 存放url的excel
@@ -262,7 +264,7 @@ class Spider:
         except:
             pass
 
-    def extractOnlyUrl(self, url,key_index,key):
+    def extractOnlyUrl(self, url,key_index,key,thread_number):
         global email_count
         try:
             time.sleep(pre_url_or_email_sleep)
@@ -298,32 +300,32 @@ class Spider:
                     try:
                         self.write_to_excel(email_path, 0, email_count, 0, email)
                         email_count += 1
-                        logger("正采集第{}词：{},Email为:【{}】:{}".format(key_index, key,email_count, email), color="")
+                        logger("线程：{}：正采集第{}词：{},Email为:【{}】:{}".format(thread_number,key_index, key,email_count, email), color="")
                     except Exception as e:
-                        logger("异常信息：{}".format(e))
+                        logger("邮箱异常信息：{}".format(e))
 
             return listUrl
         except Exception as e:
-            pass
             # logger("获取邮箱异常：{}".format(e))
+            pass
 
-    def spider(self, key_queue):
+    def spider(self, key_queue,thread_number):
         global url_count
-        global key_index
+        global key_count
+        key_index=thread_number
         try:
             while not key_queue.empty():
                 key = key_queue.get()
 
-                logger("当前爬取第{}个关键词：{}".format(key_index, key))
-
+                logger("线程：{}：当前爬取第{}个关键词：{}".format(thread_number,key_index, key))
+                key_count+=1
                 response = search(key, user_agent=ua.random)
 
                 for index, result in enumerate(response):
-
                     #  休眠1s目前  暂时稳定
                     time.sleep(pre_url_or_email_sleep)
                     # 每个url解析email
-                    self.extractOnlyUrl(result,key_index,key)
+                    self.extractOnlyUrl(result,key_index,key,thread_number)
 
                     url = result.split("/")
                     try:
@@ -334,7 +336,7 @@ class Spider:
                         tmp = self.filter_email(tmp)
                         if tmp:
                             try:
-                                logger("正采集第{}词：{},Url为:【{}】:{}".format(key_index, key,url_count, tmp), color="")
+                                logger("线程：{}：正采集第{}词：{},Url为:【{}】:{}".format(thread_number,key_index, key,url_count, tmp), color="")
                                 self.totlc_url_res.add(tmp)
                                 self.write_to_excel(file_path, 0, url_count, 0, tmp)
                                 url_count += 1
@@ -343,20 +345,21 @@ class Spider:
                                     time.sleep(10)
                             except Exception as e:
                                 logger("异常信息：{}".format(e))
-                logger("当前爬取第{}个关键词：{},爬取完毕！！".format(key_index, key))
-                logger("sleep:{}".format(time_wait))
+                logger("线程：{}：爬取第{}个关键词：{},爬取完毕！！".format(thread_number,key_index, key))
+                logger("线程：{}:sleep:{}".format(thread_number,time_wait))
                 time.sleep(time_wait)
-                key_index+=1
+                # key_count+=1
+                key_index = key_count
 
-        except Exception as e:
-            logger("异常信息：{}".format(e))
+        except BaseException as e:
+            logger("url异常信息：{}".format(e))
             logger("爬取速度过快，休眠中.....休眠时间为:{}".format(time_sleep_on_sealing_ip))
             send = SendEmail()
-            content = "当前爬取第{}个关键词遇到封ip，正在休眠等待重启".format(key_index)
+            content = "当前爬取第{}个关键词遇到异常：{}，正在休眠等待重启".format(key_index,e)
             user_list = ["1364826576@qq.com"]
             send.send_text(user_list,"爬虫封ip警告",content)
             time.sleep(time_sleep_on_sealing_ip)
-            self.spider(key_queue)
+            self.spider(key_queue,thread_number)
 
     def main(self):
         global start_index, res_set
@@ -370,7 +373,7 @@ class Spider:
 
         threads = []
         for i in range(thread_num):
-            thread = threading.Thread(target=self.spider, args=(self.keyword_queue,))
+            thread = threading.Thread(target=self.spider, args=(self.keyword_queue,i))
             threads.append(thread)
 
         for one in threads:
@@ -399,6 +402,7 @@ if __name__ == '__main__':
     time_sleep_on_sealing_ip = int(config["time_sleep_on_sealing_ip"])
 
     number_of_url_will_sleep = 50
+
     logger(time.ctime())
     main()
 
