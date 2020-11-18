@@ -237,7 +237,8 @@ class Spider:
         key_len = self.opExcel.get_nrows()
         xx = 100 if key_len > 100 else key_len
         logger("生成关键点队列中......请稍候")
-        for index in range(xx):
+
+        for index in range(start_keyword_index,xx):
             key = self.get_keywords_data(index)
             key += " "+default_add_keyword
             self.keyword_queue.put(key)
@@ -347,23 +348,25 @@ class Spider:
                                 logger("异常信息：{}".format(e))
                 logger("线程：{}：爬取第{}个关键词：{},爬取完毕！！".format(thread_number,key_index, key))
                 logger("线程：{}:sleep:{}".format(thread_number,time_wait))
+                config_parser.set("default", "start_keyword_index", str(key_index))
+                config_parser.write(open("config.cfg", 'w'))
                 time.sleep(time_wait)
                 # key_count+=1
                 key_index = key_count
 
         except BaseException as e:
             logger("url异常信息：{}".format(e))
-            logger("爬取速度过快，休眠中.....休眠时间为:{}".format(time_sleep_on_sealing_ip))
+            logger("线程：{}：爬取速度过快，休眠中.....休眠时间为:{}".format(thread_number,time_sleep_on_sealing_ip))
             send = SendEmail()
             content = "当前爬取第{}个关键词遇到异常：{}，正在休眠等待重启".format(key_index,e)
-            user_list = ["1364826576@qq.com"]
+
             send.send_text(user_list,"爬虫封ip警告",content)
             time.sleep(time_sleep_on_sealing_ip)
-            self.spider(key_queue,thread_number)
+            self.spider(key_queue,key_index)
 
     def main(self):
-        global start_index, res_set
-
+        global start_keyword_index, res_set
+        logger("当前已爬关键词数量：{}".format(start_keyword_index))
         logger("当前已有url数量：{}".format(self.url_count))
         logger("当前已有email数量：{}".format(self.email_count))
 
@@ -388,8 +391,6 @@ def main():
 
 
 if __name__ == '__main__':
-    start_index = 0
-
     config_parser = ConfigParser()
     config_parser.read('config.cfg')
     config = config_parser['default']
@@ -400,9 +401,10 @@ if __name__ == '__main__':
     default_add_keyword = config["default_add_keyword"]
     pre_url_or_email_sleep = int(config["pre_url_or_email_sleep"])
     time_sleep_on_sealing_ip = int(config["time_sleep_on_sealing_ip"])
+    start_keyword_index = int(config["start_keyword_index"])
 
     number_of_url_will_sleep = 50
-
+    user_list = ["1364826576@qq.com"]
     logger(time.ctime())
     main()
 
