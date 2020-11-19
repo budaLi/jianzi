@@ -235,7 +235,7 @@ class Spider:
         :return:
         """
         key_len = self.opExcel.get_nrows()
-        xx = 100 if key_len > 100 else key_len
+        xx = target_spider_keyword_number if key_len > target_spider_keyword_number else key_len
         logger("生成关键点队列中......请稍候")
 
         for index in range(start_keyword_index,xx):
@@ -321,8 +321,10 @@ class Spider:
                 logger("线程：{}：当前爬取第{}个关键词：{}".format(thread_number,key_index, key))
                 key_count+=1
                 response = search(key, user_agent=ua.random)
+                current_url_count = url_count
 
                 for index, result in enumerate(response):
+
                     #  休眠1s目前  暂时稳定
                     time.sleep(pre_url_or_email_sleep)
                     # 每个url解析email
@@ -346,6 +348,10 @@ class Spider:
                                     time.sleep(10)
                             except Exception as e:
                                 logger("异常信息：{}".format(e))
+                if current_url_count==url_count:
+                    logger("线程：{}：爬取第{}个关键词：{},未获取到信息，已重新爬取！！".format(thread_number, key_index, key))
+                    key_queue.put(key)
+                    continue
                 logger("线程：{}：爬取第{}个关键词：{},爬取完毕！！".format(thread_number,key_index, key))
                 logger("线程：{}:sleep:{}".format(thread_number,time_wait))
                 config_parser.set("default", "start_keyword_index", str(key_index))
@@ -358,7 +364,7 @@ class Spider:
             logger("url异常信息：{}".format(e))
             logger("线程：{}：爬取速度过快，休眠中.....休眠时间为:{}".format(thread_number,time_sleep_on_sealing_ip))
             send = SendEmail()
-            content = "当前爬取第{}个关键词遇到异常：{}，正在休眠等待重启".format(key_index,e)
+            content = "线程{}:当前爬取第{}个关键词遇到异常：{}，正在休眠等待重启".format(thread_number,key_index,e)
 
             send.send_text(user_list,"爬虫封ip警告",content)
             time.sleep(time_sleep_on_sealing_ip)
@@ -402,6 +408,7 @@ if __name__ == '__main__':
     pre_url_or_email_sleep = int(config["pre_url_or_email_sleep"])
     time_sleep_on_sealing_ip = int(config["time_sleep_on_sealing_ip"])
     start_keyword_index = int(config["start_keyword_index"])
+    target_spider_keyword_number = int(config["target_spider_keyword_number"])
 
     number_of_url_will_sleep = 50
     user_list = ["1364826576@qq.com"]
