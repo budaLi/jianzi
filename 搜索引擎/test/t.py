@@ -4,6 +4,7 @@
 Module Summary Here.
 Authors: lijinjun1351@ichinae.com
 """
+import encodings.idna # Unknown encoding: idna in Python Requests
 import smtplib  # 发送邮件 连接邮件服务器
 from email.mime.text import MIMEText  # 构建邮件格式
 import re
@@ -363,10 +364,12 @@ class Spider:
         except BaseException as e:
             logger("url异常信息：{}".format(e))
             logger("线程：{}：爬取速度过快，休眠中.....休眠时间为:{}".format(thread_number,time_sleep_on_sealing_ip))
-            send = SendEmail()
-            content = "线程{}:当前爬取第{}个关键词遇到异常：{}，正在休眠等待重启".format(thread_number,key_index,e)
-
-            send.send_text(user_list,"爬虫封ip警告",content)
+            try:
+                send = SendEmail()
+                content = "线程{}:当前爬取第{}个关键词遇到异常：{}，正在休眠等待重启".format(thread_number,key_index,e)
+                send.send_text(user_list,"爬虫封ip警告",content)
+            except Exception as e :
+                logger("发邮件失败;{}".format(e))
             time.sleep(time_sleep_on_sealing_ip)
             self.spider(key_queue,key_index)
 
@@ -409,9 +412,11 @@ if __name__ == '__main__':
     time_sleep_on_sealing_ip = int(config["time_sleep_on_sealing_ip"])
     start_keyword_index = int(config["start_keyword_index"])
     target_spider_keyword_number = int(config["target_spider_keyword_number"])
+    send_userlist = config["send_userlist"]
 
     number_of_url_will_sleep = 50
-    user_list = ["1364826576@qq.com"]
+    user_list = send_userlist.split(",")
+    print(user_list)
     logger(time.ctime())
     main()
 
