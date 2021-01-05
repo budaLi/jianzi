@@ -168,6 +168,8 @@ class DisplayImageWidget(QtWidgets.QWidget):
                 if line[0]!=gt_imgs[idx]:
                     continue
                 img = r"E:\桌面\工作算法\rap2.0\RAP_dataset\{}".format(line[0])
+                if "1" not in gt_file_lines[idx][29]:
+                    continue
                 self.img_path_list.append(img)
                 self.pre_attr.append(line[1:])
                 self.gt_attr.append(gt_file_lines[idx])
@@ -184,9 +186,9 @@ class DisplayImageWidget(QtWidgets.QWidget):
         try:
             gt_age = age_map[tuple(self.gt_attr[self.img_index][:5])]
             pre_age = age_map[tuple(self.pre_attr[self.img_index][:5])]
-            if pre_age!="幼儿":
-                self.img_index+=1
-                self.show_image()
+            # if pre_age!="幼儿":
+            #     self.img_index+=1
+            #     self.show_image()
 
             self.tips.setText("RAPv2  vs API")
             self.image = QtGui.QImage(self.image.data.tobytes(), self.image.shape[1], self.image.shape[0],self.image.shape[1]*3, QtGui.QImage.Format_RGB888).rgbSwapped()
@@ -224,6 +226,8 @@ class DisplayImageWidget(QtWidgets.QWidget):
 
             gt_lower_color = trans_color(lower_color_map,self.gt_attr[self.img_index][23:36])
             pre_lower_color = trans_color(lower_color_map,self.pre_attr[self.img_index][23:36])
+
+
             self.low_color.setText("下衣颜色：{}/{}".format(gt_lower_color,pre_lower_color))
 
             gt_viewpoint = viewpoints_map[tuple(self.gt_attr[self.img_index][36:40])]

@@ -40,9 +40,9 @@ def check_equal(target,pre):
     if  target==pre:
         return 1
     return 0
-
+error_couynt =0
 totle_res = []
-with open("res.txt") as f:
+with open("rapv2_12_25.txt") as f:
     lines = f.readlines()
     for index,line in enumerate(lines):
 
@@ -57,11 +57,19 @@ with open("res.txt") as f:
         gt_up_color_str = line[11:24]
         gt_lower_color_str = line[24:37]
         gt_viewpoints_str = line[37:41]
-        res_json_file = "./res_json_file/{}.json".format(img)
+        res_json_file = r"D:\行人属性数据\res_json_file\{}.json".format(img)
         if os.path.isfile(res_json_file):
             with open(res_json_file,'r') as load_f:
                 res = json.load(load_f)[0]["attributes"]
                 if res=="":
+                    continue
+                is_human = res["is_human"]["name"]
+                if is_human=="非正常人体":
+                    error_couynt+=1
+                    continue
+                upper_cut = res["upper_cut"]["name"]
+                if upper_cut=="有上方截断":
+                    error_couynt+=1
                     continue
                 pre_age = age_map[res["age"]["name"]]
                 pre_sex = sex_map[res["gender"]['name']]
@@ -83,12 +91,17 @@ with open("res.txt") as f:
                 pre_up_color_str = " ".join(list(map(str, pre_up_color_str)))
                 pre_lower_color_str = " ".join(list(map(str, pre_lower_color_str)))
                 pre_viewpoints_str = " ".join(list(map(str, pre_viewpoints_str)))
-                with open("api.txt", "a+") as res_file:
-                    # 共 41 列
-                    res_str = "{} {} {} {} {} {} {} {} {} {}\n".format(line[0], pre_age, pre_sex, pre_hs_hat, pre_hs_mask, pre_hs_glass, pre_hs_bag,
-                                                                       pre_up_color_str, pre_lower_color_str, pre_viewpoints_str)
-                    print(res_str)
-                    res_file.write(res_str)
+
+                # 共 41 列
+                res_str = "{} {} {} {} {} {} {} {} {} {}\n".format(line[0], pre_age, pre_sex, pre_hs_hat, pre_hs_mask, pre_hs_glass, pre_hs_bag,
+                                                                   pre_up_color_str, pre_lower_color_str, pre_viewpoints_str)
+                totle_res.append(res_str)
+
+print("异常数据",error_couynt)
+with open("api.txt", "w") as res_file:
+    for res_str in totle_res:
+        print(res_str)
+        res_file.write(res_str)
 # 统计每个属性标签与百度APi的预测情况
 # totle_res = list(map(list, zip(*totle_res)))
 # print("当前图片数：{}".format(len(totle_res[0])))
